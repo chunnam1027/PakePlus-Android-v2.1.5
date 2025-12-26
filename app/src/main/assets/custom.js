@@ -25,56 +25,64 @@ window.open = function (url, target, features) {
 
 document.addEventListener('click', hookClick, { capture: true })
 
-// ========== 新增：横竖屏检测与提示功能 ==========
-// 1. 创建竖屏提示层（样式可自定义）
-function createPortraitTip() {
-    // 避免重复创建提示层
-    if (document.getElementById('portrait-tip')) return;
+// ===================== 麦克风调用功能（按要求调整） =====================
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. 创建麦克风调用按钮
+    const micButton = document.createElement('button');
+    // 调整按钮样式：放在页面上方中间位置
+    micButton.style.position = 'fixed';
+    micButton.style.top = '20px';          // 距离顶部20px
+    micButton.style.left = '50%';         // 水平居中第一步：左移50%
+    micButton.style.transform = 'translateX(-50%)'; // 水平居中第二步：左移自身50%
+    micButton.style.padding = '12px 24px';
+    micButton.style.fontSize = '16px';
+    micButton.style.backgroundColor = '#007bff';
+    micButton.style.color = 'white';
+    micButton.style.border = 'none';
+    micButton.style.borderRadius = '8px';
+    micButton.style.cursor = 'pointer';
+    micButton.style.zIndex = '9999'; // 确保按钮在最上层
+    micButton.textContent = '点击调用麦克风';
 
-    const tip = document.createElement('div');
-    tip.id = 'portrait-tip';
-    // 提示层样式：全屏覆盖、居中显示提示文字、遮挡页面内容
-    tip.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: #fff;
-        z-index: 9999; /* 确保覆盖所有页面内容 */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-size: 20px;
-        color: #333;
-        text-align: center;
-        padding: 0 20px;
-    `;
-    tip.innerHTML = `
-        <div style="margin-bottom: 20px; font-size: 40px;">📱</div>
-        <div>请将手机切换为横屏模式</div>
-        <div style="margin-top: 10px; font-size: 14px; color: #666;">横屏后即可进入小镇</div>
-    `;
-    document.body.appendChild(tip);
-}
+    // 2. 麦克风调用核心函数
+    async function startMicrophone() {
+        try {
+            // 检查浏览器是否支持
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('你的浏览器不支持麦克风调用，请升级到最新版本！');
+                return;
+            }
 
-// 2. 检测屏幕方向并处理
-function checkScreenOrientation() {
-    const isLandscape = window.innerWidth > window.innerHeight; // 宽度>高度=横屏
-    const tip = document.getElementById('portrait-tip');
-    
-    if (isLandscape) {
-        // 横屏：隐藏提示层
-        tip && (tip.style.display = 'none');
-    } else {
-        // 竖屏：创建并显示提示层
-        createPortraitTip();
-        tip && (tip.style.display = 'flex');
+            // 申请麦克风权限
+            const micStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: false
+            });
+
+            // 调用成功：直接让按钮消失
+            micButton.style.display = 'none';
+            console.log('麦克风调用成功，按钮已隐藏', micStream);
+            window.microphoneStream = micStream;
+
+        } catch (error) {
+            // 调用失败：给出提示，按钮保留（方便重试）
+            micButton.textContent = '调用失败，点击重试 ❌';
+            micButton.style.backgroundColor = '#dc3545';
+            
+            if (error.name === 'NotAllowedError') {
+                alert('麦克风权限被拒绝！请在浏览器地址栏左侧的权限图标中，允许本网站使用麦克风。');
+            } else if (error.name === 'NotFoundError') {
+                alert('未检测到麦克风设备！请检查你的麦克风是否连接正常。');
+            } else {
+                alert(`麦克风调用失败：${error.message}`);
+            }
+            console.error('麦克风调用错误详情：', error);
+        }
     }
-}
 
-// 3. 绑定事件：页面加载/尺寸变化/方向变化时检测
-window.addEventListener('load', checkScreenOrientation); // 页面加载完成后检测
-window.addEventListener('resize', checkScreenOrientation); // 窗口尺寸变化时检测
-window.addEventListener('orientationchange', checkScreenOrientation); // 移动端方向变化时检测
+    // 3. 绑定按钮点击事件
+    micButton.addEventListener('click', startMicrophone);
+
+    // 4. 将按钮添加到页面中
+    document.body.appendChild(micButton);
+});
